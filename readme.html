@@ -1,0 +1,208 @@
+<html>
+<head>
+	<title>A few Macros for Designing by Contract in Objective-C</title>
+	<link rel=stylesheet href="article.css">
+</head>
+
+<body>
+
+<h1>A few Macros for Designing by Contract in Objective-C</h1>
+<h2>What's that ?</h2>
+<p>
+Design by contract is a software methodology invented and pushed by Bertrand Meyer. Basically, the idea is that for each Object in your program, you want to have a "contract", that explicitely states what the Object expects (input/output ranges, etc.).
+<br>
+In fact, it's the old idea of assertions -- but Bertrand Meyer refined it to a great degree in his OO language <a href="http://www.eiffel.com">Eiffel</a>. 
+Each method of the Object could then have for example Prerequisites and Postrequisites -- the former states what the 
+method expects in parameters / object state before running, the later states what must be the result of the method. 
+<br>
+Additionally, there is the possibility to have <i>invariants</i>, that is, assertions that must be true during the whole life of the Object. 
+<br>
+</p>
+
+<p>The concept of Design by contract is more advanced than just "assertions", in that it's a way of explicitely have a contract between the Object and its user. It's quite helpful to find bugs, and it's a <b>really</b> useful tool in OOP when you want to reuse objects. 
+<br>
+A famous example is the Ariane 5 crash : an Ariane 4 software component was reused and caused the crash. But more specifically, if the component crashed, that wasn't exactly because of a bug, but because the component expected a value range less important (which was ok with Ariane 4, no more with Ariane 5)... and that was stated in the documentation ! Yet nobody spotted it. Using the Design by Contract methodology in that case would have immediately raised the difference between the module's expectations and the reality. It costed half a million dollars ;-)
+</p>
+
+<h2>The macros</h2>
+
+<p>The macros available on this page implements the pre- and post- assertions as well as invariants. Eiffel is way more refined, but I think the macros in their current state are useable. Yet, I'm not an expert in Design by Contract nor in Eiffel, and theses macros are quite young. So, obviously, if you have ideas/critics/comments, feel free to send me a <a href="mailto:nicolas@roard.com">mail</a> :-)
+</p>
+
+<h3>Download</h3>
+
+<p>
+Download a tgz <a href="http://www.roard.com/contracts/Contracts.tgz">here</a>. The macros should work on GNUstep (Linux/*nix/Windows/OSX) and OSX.
+</p>
+
+<h2>Exemple</h2>
+
+<p>
+Say you have an Account object, modeling a bank account. You want to keep trace of all the deposits on this account, and have the balance. Your object could be something like that :
+</p>
+
+<pre>
+#import &lt;Foundation/Foundation.h&gt;
+
+@interface Account : NSObject
+{
+        NSMutableArray* AllDeposits;
+        int balance; // current balance
+}               
+- (int) depositCount; // number of deposits made since opening
+- (void) deposit: (int) sum; // add sum to the 
+- (int) balance;
+@end
+</pre>
+
+<p>The implementation will then be : </p>
+
+<pre>
+#import "Account.h"
+
+@implementation Account
+- (id) init {
+        self = [super init];
+        AllDeposits = [NSMutableArray new];
+        return self;
+}
+- (void) dealloc {
+        [AllDeposits release];
+}
+- (int) depositCount {
+        return [AllDeposits count];
+}
+- (void) deposit: (int) sum {
+        [AllDeposits addObject: [NSNumber numberWithInt: sum]];
+        balance = balance + sum;
+}
+- (int) balance { return balance; }
+@end
+</pre>
+
+<h3>The Contract</h3>
+
+<p>Here is the contract for this object : </p>
+
+<pre>
+#import "Contracts.h"
+#import "Account.h"
+
+BEGIN_CONTRACT (Account)
+
+        INVARIANTS (
+                FACT (AllDeposits != nil);
+                FACT (balance &gt;= 0);
+        )
+
+        - (int) depositCount VERIFY (
+                int Result = [super depositCount]; // call the method
+        )
+
+        - (void) deposit: (int) sum VERIFY_PROC (
+                REQUIRE (
+                        FACT (sum &gt;= 0);
+                )
+                MODIFY (AllDeposits);
+                MODIFY (balance);
+                [super deposit: sum]; // call the method
+                ENSURE (
+                        FACT ([AllDeposits count] == [OLD(AllDeposits) count] + 1);
+                        FACT (balance == [OLD (balance) intValue]+ sum);
+                )
+        )
+
+END_CONTRACT
+</pre>
+
+<h3>Explanation</h3>
+
+<p>The basic idea for implementing contracts in Objective-C for a class <b>A</b> is to create a subclass <b>B</b> of the class <b>A</b>. Then, you subclass all the methods of <b>A</b> in <b>B</b>, following the model : </p>
+
+<pre>
+// in A
+- (void) method {
+	// do something
+}
+
+// in B
+- (void) method {
+	// Verify the invariants
+	// Verify the preconditions
+	[super method]; // call the A's method
+	// Verify the postconditions
+	// Verify the invariants
+}
+</pre>
+
+<p>The trick is then to replace <b>A</b> by <b>B</b> using <i>poseAsClass:</i>, so all the normal calls to <b>A</b> will be treated in <b>B</b> first, thanks to the ObjC runtime :-)</p>
+
+<p>The pre- and post- conditions are just normal assertions; the invariants are assertions stored in the method <i>- (void) invariants</i> -- so if you have already a method named like that, you need to change that in Contracts.h</p>
+
+<h3>Problems and limitations</h3>
+
+<p>Ideally, what we'd like is the automatic wrapping of the method -- at least for checking invariants; for methods that want pre- or post- conditions, the programmer should anyway declare them. The problem here is the runtime; although I was able to hack a bit the GNU runtime to replace the normal method's addresses by mines, and effectively have them called, I still have some problems with the returning parameters. Thus in the actual version of the macros, I don't do anything with the runtime and you MUST reimplement in <b>B</b> all the methods that you want to be checked :-/</p>
+
+<h3>Detailed explanation</h3>
+
+<h4>BEGIN_CONTRACT and END_CONTRACT</h4>
+
+<p>Each contract should be enclosed in BEGIN_CONTRACT/END_CONTRACT -- theses macros actually create a subclass of the class given in parameters
+
+<pre>
+#import "Contracts.h" // You want to import all theses nice macros :-)
+#import "YourObject.h" // Import the header of the object you're writing the contract
+
+BEGIN_CONTRACT (YourObject)
+
+// Here use the macros ...
+
+END_CONTRACT
+</pre>
+
+<h4>INVARIANTS</h4>
+
+<p>To define the invariants, you use the macro INVARIANTS -- you just put assertions in it.</p>
+
+<h4>assertions : FACT and FACT_MSG</h4>
+
+<p>Theses assertions takes an expression as a parameter that is tested. If the test is false, then some NSLog are issued explaing the problem and the program quit via <i>exit(-2);</i> . If you prefer to have the assertions raise exceptions, just modify theses macros.<br>
+FACT_MSG takes another parameter, a message that is printed if the assertion fails.</p>
+
+<p>Assertations could be wrapped in REQUIRE (...) and ENSURE (...) macros. Theses macros just set a variable used in the error reporting (CONTRACTS_CURRENT_STATE). REQUIRE represents the preconditions of a method, ENSURE represents the postconditions.</p>
+
+<h4>Methods</h4>
+
+<p>You declare the methods like you do normally, but you use the macros VERIFY (...) or VERIFY_PROC (...) instead of { and } : </p>
+
+<pre>
+- (int) method VERIFY (
+	int Result = [super method]; // call the method in A
+)
+- (void) method VERIFY_PROC (
+	[super method]; // call the method in A
+)
+</pre>
+
+<p> What theses two macros do is to wrap the code between two calls of the invariants' method, plus set some variables used for the error display in the assertions (CONTRACTS_CURRENT_METHOD...).</p>
+<p> They also create a dictionary (__OLD_DATA_VALUES__) for possibly keeping trace of the original state of values. For signaling that you want to keep trace of a value, just use the MODIFY(...) macro -- that will copy the value in the dictionary. You could then refers to theses values using the OLD(...) macro, as seen in the first example. As the values are stored as objects, int and float are stored as NSNumber, hence the call to <i>intValue</i> in the example. </p>
+<p>The difference between VERIFY and VERIFY_PROC is that VERIFY expects you to have a local variable <b>Result</b> that will be returned. VERIFY_PROC is thus mandatory for use with "procedures" (void returning methods).</p>
+
+<h2>Use of the contract</h2>
+
+<p>In your main procedure, before using your objects, you should call the APPLY_CONTRACT(...) macro. You must import the Contracts.h file and the file where your contract is defined.</p>
+
+<h2>Notes</h2>
+
+<p>The following global variables are used :
+	<ul>
+	<li>CONTRACTS_CURRENT_METHOD</li>
+	<li>CONTRACTS_CURRENT_STATE</li>
+	</ul>
+The method <i>-(void) invariants</i> is added to the object and to NSObject using categories
+</p>
+
+<h2>Author</h2>
+Nicolas Roard, mail : nicolas a t roard dot com
+</body>
+</html>
