@@ -38,7 +38,7 @@
       () \
       (metamacro_foreach(contract_assert_iter, , __VA_ARGS__)) \
     ; \
-    BrynLog(COLOR_SUCCESS(@"Invariants OK"); \
+    BrynLog(COLOR_SUCCESS(@"Invariants OK")); \
   }
 
 
