@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.author       = { "Bryn Austin Bellomy" => "bryn.bellomy@gmail.com" }
   s.source       = { :git => "https://github.com/brynbellomy/ObjC-DesignByContract.git" }
 
-  s.source_files = "{Contracts.h,vendor/libextobjc/EXTScope.{h,m}}"
+  s.source_files = "{Contracts.h,{vendor/libextobjc/{EXTScope.{h,m}},metamacros.h}}"
   s.requires_arc = true
 
   s.xcconfig = { "PUBLIC_HEADERS_FOLDER_PATH" => "include/$(TARGET_NAME)" }
