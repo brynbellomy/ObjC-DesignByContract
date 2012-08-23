@@ -10,6 +10,7 @@ Pod::Spec.new do |s|
 
   s.source_files = "{Contracts.h,vendor/libextobjc/{EXTScope.{h,m},metamacros.h}}"
   s.requires_arc = true
+  s.prefix_header_contents = "#import <ObjC-DesignByContract/Contracts.h>"
 
   s.xcconfig = { "PUBLIC_HEADERS_FOLDER_PATH" => "include/$(TARGET_NAME)" }
 end
