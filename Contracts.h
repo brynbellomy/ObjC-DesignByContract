@@ -14,15 +14,16 @@
 #import "metamacros.h"
 
 
-#define contract_assert(TEST) if (!(TEST)) { \
-	BrynLog (XCODE_COLORS_FG(255, 0, 0) @">>> ERROR ON ASSERT : \"%s\" is false (l. %d file %s)" XCODE_COLORS_RESET, #TEST, __LINE__, __FILE__); \
-	if (CONTRACTS_CURRENT_STATE == 1) \
-		BrynLog (XCODE_COLORS_FG(255, 0, 0) @"+++ Problem occurred while veryfing preconditions of method \"%@\"" XCODE_COLORS_RESET, CONTRACTS_CURRENT_METHOD); \
-	if (CONTRACTS_CURRENT_STATE == 2) \
-		BrynLog (XCODE_COLORS_FG(255, 0, 0) @"+++ Problem occurred while veryfing postconditions of method \"%@\"" XCODE_COLORS_RESET, CONTRACTS_CURRENT_METHOD); \
-	if (CONTRACTS_CURRENT_STATE == 3) \
-		BrynLog (XCODE_COLORS_FG(255, 0, 0) @"+++ Problem occurred while veryfing invariants in method \"%@\"" XCODE_COLORS_RESET, CONTRACTS_CURRENT_METHOD); \
-	exit (-2); \
+#define contract_assert(TEST) \
+  if (!(TEST)) { \
+	  BrynLog (COLOR_ERROR(@">>> ERROR ON ASSERT : \"%s\" is false "), #TEST); \
+  	if (CONTRACTS_CURRENT_STATE == 1) \
+  		BrynLog (COLOR_ERROR(@"+++ Problem occurred while veryfing preconditions of method ") @"[" COLOR_FUNC(@"%@") @"]", CONTRACTS_CURRENT_METHOD); \
+  	if (CONTRACTS_CURRENT_STATE == 2) \
+  		BrynLog (COLOR_ERROR(@"+++ Problem occurred while veryfing postconditions of method ") @"[" COLOR_FUNC(@"%@") @"]", CONTRACTS_CURRENT_METHOD); \
+  	if (CONTRACTS_CURRENT_STATE == 3) \
+  		BrynLog (COLOR_ERROR(@"+++ Problem occurred while veryfing invariants in method ") @"[" COLOR_FUNC(@"%@") @"]", CONTRACTS_CURRENT_METHOD); \
+  	exit (-2); \
 	}
 
 #define contract_assert_iter(index, assertion) \
@@ -37,7 +38,7 @@
       () \
       (metamacro_foreach(contract_assert_iter, , __VA_ARGS__)) \
     ; \
-    BrynLog(XCODE_COLORS_FG(0, 255, 0) @"Invariants OK" XCODE_COLORS_RESET); \
+    BrynLog(COLOR_SUCCESS(@"Invariants OK"); \
   }
 
 
@@ -49,7 +50,7 @@
     () \
     (metamacro_foreach(contract_assert_iter, , __VA_ARGS__)) \
   ; \
-  BrynLog(XCODE_COLORS_FG(0, 255, 0) @"Preconditions OK for [%@]" XCODE_COLORS_RESET, CONTRACTS_CURRENT_METHOD); \
+  BrynLog(COLOR_SUCCESS(@"Preconditions OK for ") @"[" COLOR_FUNC(@"%@") @"]", CONTRACTS_CURRENT_METHOD); \
   [self CONTRACT__invariants]; \
 
 
@@ -63,27 +64,26 @@
       () \
       (metamacro_foreach(contract_assert_iter, , __VA_ARGS__)) \
     ; \
-    BrynLog(XCODE_COLORS_FG(0, 255, 0) @"Postconditions OK for [%@]" XCODE_COLORS_RESET, CONTRACTS_CURRENT_METHOD); \
+    BrynLog(COLOR_SUCCESS(@"Postconditions OK for ") @"[" COLOR_FUNC(@"%@") @"]", CONTRACTS_CURRENT_METHOD); \
   };
-
 
 
 
 #define freeze(...) \
   try{} @finally{} \
   NSArray *keys = [@#__VA_ARGS__ componentsSeparatedByString:@", "]; \
-  NSMutableDictionary* __OLD_DATA_VALUES__ = nil; \
-  if (keys.count == 1 && keys[0] == @"") __OLD_DATA_VALUES__ = nil; \
+  NSMutableDictionary* __CONTRACTS_FROZEN__ = nil; \
+  if (keys.count == 1 && keys[0] == @"") __CONTRACTS_FROZEN__ = nil; \
   else { \
-    NSMutableDictionary *temp = [[self dictionaryWithValuesForKeys:keys] mutableCopy]; \
-    __OLD_DATA_VALUES__ = [NSMutableDictionary dictionary]; \
-    for (id key in temp) { \
-      __OLD_DATA_VALUES__[ key ] = [temp[ key ] copy]; \
+    NSDictionary *__CONTRACTS_FROZEN_TEMP__ = [self dictionaryWithValuesForKeys:keys]; \
+    __CONTRACTS_FROZEN__ = [NSMutableDictionary dictionary]; \
+    for (id key in __CONTRACTS_FROZEN_TEMP__) { \
+      __CONTRACTS_FROZEN__[ key ] = [__CONTRACTS_FROZEN_TEMP__[ key ] copy]; \
     } \
   }
 
 #define frozen(variable) \
-  __OLD_DATA_VALUES__[ @#variable ]
+  __CONTRACTS_FROZEN__[ @#variable ]
 //  try {} @finally {} \
 
 
@@ -97,67 +97,6 @@ static int CONTRACTS_CURRENT_STATE;
 	- (void) CONTRACT__invariants {}
 @end 
 
-
-
-//#define BEGIN_CONTRACT(name) \
-//extern NSString* CONTRACTS_CURRENT_METHOD; \
-//extern int CONTRACTS_CURRENT_STATE; \
-//@interface name (name ## Contract) \
-//- (void) invariants; \
-//@end \
-//@implementation name (name ## Contract) \
-//- (void) invariants { \
-//[super invariants]; } \
-//@end \
-//@interface name ## Contract : name {} \
-//- (void) invariants; \
-//@end \
-//@implementation name ## Contract
-
-
-//#define END_CONTRACT 	     @end
-
-//#define APPLY_CONTRACT(name) \
-//		[name ## Contract poseAsClass: [name class]];
-//performSelector:@selector(poseAsClass:) withObject:[name class]];
-//poseAsClass: [name class]];
-
-
-//#define ContractWithReturn(code) \
-//  { \
-//    NSMutableDictionary* __OLD_DATA_VALUES__ = [NSMutableDictionary new]; \
-//    CONTRACTS_CURRENT_METHOD = NSStringFromSelector (_cmd); \
-//    [self invariants]; \
-//    code; \
-//    [self invariants]; \
-//    return __RETURN_VALUE__; \
-//  }
-//
-//#define Contract(code) \
-//    NSMutableDictionary* __OLD_DATA_VALUES__ = [NSMutableDictionary new]; \
-//    CONTRACTS_CURRENT_METHOD = NSStringFromSelector (_cmd); \
-//    [self invariants]; \
-//    code; \
-//    [self invariants];
-//[self trackValues:__VA_ARGS__, nil];
-
-//#define VERIFY(selectorName, code) CONTRACT__##selectorName  { \
-//NSMutableDictionary* __OLD_DATA_VALUES__ = [NSMutableDictionary new]; \
-//CONTRACTS_CURRENT_METHOD = NSStringFromSelector (_cmd); \
-//[self invariants]; \
-//code; \
-//[self invariants]; \
-//return __RETURN_VALUE__; \
-//}
-//
-//#define VERIFY_PROC(selectorName, code) CONTRACT__##selectorName { \
-//NSMutableDictionary* __OLD_DATA_VALUES__ = [NSMutableDictionary new]; \
-//CONTRACTS_CURRENT_METHOD = NSStringFromSelector (_cmd); \
-//[self invariants]; \
-//code; \
-//[self invariants]; \
-//NSLog(@"%d", __OLD_DATA_VALUES__.count); \
-//}
 
 
 
