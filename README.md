@@ -87,6 +87,7 @@ a few things to take note of here:
 
 - bryn austin bellomy < <bryn.bellomy@gmail.com> >
 - nicolas roard < <nicolas@roard.com> >
+- justin spahr-summers, whose **libextobjc** ([jspahrsummers/libextobjc](http://github.com/jspahrsummers/libextobjc)) is full of incredible shit
 
 # license (MIT)
 
