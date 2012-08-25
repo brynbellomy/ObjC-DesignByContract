@@ -76,6 +76,8 @@ your methods will need to look something like this:
 
 a few things to take note of here:
 
+- even if you have no pre- or postconditions, still include both blocks.  they help make sure that the invariants are checked.
+- you can omit `@freeze` if you don't need it.
 - `@freeze` stores the value of a property/ivar on the object so that you can write postconditions about how it should've changed during the execution of the method body.
 - `@freeze`'s internal machinery uses key/value stuff to store these values, so any scalar value is going to get encoded as an Objective-C object.  that's why you see `[frozen(_money) unsignedIntegerValue]` instead of just `frozen(_money)`.
 - i'm pretty sure it's a good idea to use `self.x` in your `@postconditions` block rather than simply `_x`.  why?  because `@postconditions` defines an Objective-C block that gets executed upon leaving the method's scope.  i can't recall the specifics of how blocks copy the values of properties/ivars referenced in their block bodies, but just in case they copy the actual ivars instead of taking an automatic, silent reference to `self`, it'd be a good idea to reference the ivar via `self`.  otherwise, the copy of the ivar/property that the `@postconditions` block has access to will be from the very beginning of the method's execution, where `@postconditions` is defined, rather than the value upon exiting the method.
