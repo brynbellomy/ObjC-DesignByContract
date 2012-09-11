@@ -1,4 +1,0 @@
-platform :ios
-
-pod 'ObjC-DesignByContract'
-pod 'BrynKit'
