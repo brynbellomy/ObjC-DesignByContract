@@ -1,5 +1,10 @@
 # // objective-c design by contract
 
+
+<img src="http://f.cl.ly/items/1g0c151p0k0a2U0J3p2o/Snapshot%209.30.12%2013.32%20pm.png" />
+
+
+
 the macros herein are based on a set of macros devised by [nicolas roard](http://roard.com) quite a while back.  i was mega-stoked when i came across them, but it turned out that they weren't ARC-compatible.  so i rewrote them and added a lil' flair of my own.
 
 # how
